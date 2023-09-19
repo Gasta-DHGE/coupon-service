@@ -1,4 +1,5 @@
 import validateApiAccess from '../../services/validateApiAccess.js';
+import validateCreateCouponAccess from '../../services/validateCreateCouponAccess.js';
 
 export default async function (fastify, opts) {
   fastify.get('/', async function (request, reply) {
@@ -8,13 +9,13 @@ export default async function (fastify, opts) {
   });
 
   fastify.post('/', async function (request, reply) {
-    await validateApiAccess(request, reply); // other api validation because of higher safety reasons
+    await validateCreateCouponAccess(request, reply);
 
     return 'create a coupon';
   });
 
   fastify.delete('/', async function (request, reply) {
-    await validateApiAccess(request, reply); // other api validation because of higher safety reasons
+    await validateApiAccess(request, reply);
 
     return 'delete a coupon';
   });
