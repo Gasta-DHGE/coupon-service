@@ -8,6 +8,12 @@ export default async function (fastify, opts) {
     return 'get a coupon and see if he is valid';
   });
 
+  fastify.get('/user', async function (request, reply) {
+    await validateApiAccess(request, reply);
+
+    return 'get the coupons of a user';
+  });
+
   fastify.post('/', async function (request, reply) {
     await validateCreateCouponAccess(request, reply);
 
