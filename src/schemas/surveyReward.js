@@ -1,4 +1,4 @@
-import { itemDiscount, freeItem, customReward } from './rewardTypes';
+import { itemDiscount, freeItem, customReward } from './rewardTypes.js';
 
 export default {
   type: 'object',

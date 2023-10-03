@@ -1,18 +1,27 @@
 import { StatusCodes } from 'http-status-codes';
 import { firestore } from '../firebase/firebase.js';
+import uniqid from 'uniqid';
 
 export default async function (request, reply) {
-  const { uid, surveyReward, surveyId, userChoiceIndex } = request.body;
+  const { uid, surveyId, userChoiceIndex } = request.body;
 
-  const validation = validateSurveyReward(surveyReward);
+  const userHasCoupon = await checkUserAlreadyHasCoupon(surveyId, uid);
 
-  if (validation.isValid === false) {
+  if (userHasCoupon) {
     return reply
       .code(StatusCodes.BAD_REQUEST)
       .send({
         statusCode: StatusCodes.BAD_REQUEST,
-        message: validation.message
+        message: 'user has already a coupon of this survey'
       });
+  }
+
+  const { coupon, companyId, error } = await createCoupon(surveyId, userChoiceIndex);
+
+  if (error !== null) {
+    return reply
+      .code(StatusCodes.BAD_REQUEST)
+      .send(error);
   }
 
   const userCouponReference = firestore
@@ -20,52 +29,129 @@ export default async function (request, reply) {
     .doc(uid)
     .collection('coupons');
 
-  const coupon = buildCoupon(uid, surveyReward);
-
   try {
-    const response = await userCouponReference
+    const couponDocumentRef = await userCouponReference
       .add(coupon);
+
+    const couponDocumentId = couponDocumentRef.id;
+
+    const companyCoupon = {
+      ...coupon,
+      isFullfilled: false
+    };
+
+    await firestore
+      .collection('companies')
+      .doc(companyId)
+      .collection('coupons')
+      .doc(couponDocumentId)
+      .set(companyCoupon);
+
+    const couponSnapshot = await userCouponReference
+      .doc(couponDocumentId)
+      .get();
+
+    return reply
+      .code(StatusCodes.CREATED)
+      .send(couponSnapshot.data());
   } catch (error) {
-    reply
+    return reply
       .code(StatusCodes.INTERNAL_SERVER_ERROR)
       .send(error);
   }
 }
 
-function validateSurveyReward (surveyReward, userChoiceIndex) {
-  const { rewardVariant } = surveyReward;
+async function createCoupon (surveyId, userChoiceIndex) {
+  try {
+    const surveyRefSnapshot = await firestore
+      .collection('surveys')
+      .doc(surveyId)
+      .get();
 
-  if (rewardVariant === 'choose') {
-    if (userChoiceIndex === undefined || userChoiceIndex < 0) {
+    if (!surveyRefSnapshot.exists) {
       return {
-        isValid: false,
-        message: `userChoiceIndex "${userChoiceIndex}" is invalid, you need to provide a valid index`
+        coupon: null,
+        companyId: null,
+        error: {
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: 'this survey does not exist'
+        }
       };
     }
-  }
 
-  return { isValid: true, message: '' };
+    const { companyId } = surveyRefSnapshot.data();
+
+    const surveySnapshot = await firestore
+      .collection('companies')
+      .doc(companyId)
+      .collection('survey')
+      .doc(surveyId)
+      .get();
+
+    const { reward } = surveySnapshot.data();
+
+    const companySnapshot = await firestore
+      .collection('companies')
+      .doc(companyId)
+      .get();
+
+    const companyData = companySnapshot.data();
+
+    const coupon = buildCoupon(reward, surveyId, userChoiceIndex, companyData, companyId);
+
+    return { coupon, companyId, error: null };
+  } catch (error) {
+    return {
+      coupon: null,
+      companyId: null,
+      error
+    };
+  }
 }
 
-function buildCoupon (uid, surveyReward) {
-  const { items, rewardVariant, expiringTime, userChoiceIndex } = surveyReward;
+function buildCoupon (reward, surveyId, userChoiceIndex, companyData, companyId) {
+  const { rewardVariant, rewards, expiringTime } = reward;
+  const { name, address, openingDays } = companyData;
 
-  let rewardIndex;
+  let rewardIndex = 0;
 
   if (rewardVariant === 'choose') {
     rewardIndex = userChoiceIndex;
   } else if (rewardVariant === 'first') {
     rewardIndex = 0;
   } else if (rewardVariant === 'random') {
-    rewardIndex = getRandomInt(items.length);
+    rewardIndex = getRandomInt(rewards.length);
   }
 
   return {
     expiringDate: Date.now() + parseInt(expiringTime),
-    reward: items[rewardIndex]
+    couponCode: uniqid.time(),
+    companyInfo: {
+      name,
+      address,
+      openingDays,
+      companyId
+    },
+    surveyId,
+    reward: rewards[rewardIndex]
   };
 }
 
 function getRandomInt (max) {
   return Math.floor(Math.random() * max);
+}
+
+async function checkUserAlreadyHasCoupon (surveyId, uid) {
+  try {
+    const couponQuerySnapshot = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('coupons')
+      .where('surveyId', '==', surveyId)
+      .get();
+
+    return !couponQuerySnapshot.empty;
+  } catch (error) {
+    return false;
+  }
 }

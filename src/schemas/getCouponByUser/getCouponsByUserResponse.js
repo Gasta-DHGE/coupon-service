@@ -1,5 +1,8 @@
 import coupon from '../coupon.js';
 
 export default {
-  208: coupon
+  208: {
+    type: 'array',
+    items: coupon
+  }
 };
