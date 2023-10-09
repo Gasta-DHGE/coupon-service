@@ -48,17 +48,22 @@ async function getCouponByUser (request, reply) {
 
 async function handleGetCouponById (firestoreRef, couponId, reply) {
   try {
-    const couponRef = await firestoreRef
+    const couponSnapshot = await firestoreRef
       .doc(couponId)
       .get();
 
-    if (couponRef.exists === false) {
+    if (couponSnapshot.exists === false) {
       return handleNotExistingCoupon(reply);
     }
 
+    const coupon = {
+      ...couponSnapshot.data(),
+      id: couponSnapshot.id
+    };
+
     return reply
       .code(StatusCodes.OK)
-      .send(couponRef.data());
+      .send(coupon);
   } catch (error) {
     return handleError(error, reply);
   }
@@ -74,9 +79,14 @@ async function handleGetCouponByCode (firestoreRef, couponCode, reply) {
       return handleNotExistingCoupon(reply);
     }
 
+    const coupon = {
+      ...couponRef.docs[0].data(),
+      id: couponRef.docs[0].id
+    };
+
     return reply
       .code(StatusCodes.OK)
-      .send(couponRef.docs[0].data());
+      .send(coupon);
   } catch (error) {
     return handleError(error, reply);
   }

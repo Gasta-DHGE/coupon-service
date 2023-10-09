@@ -14,7 +14,10 @@ export default async function handleGetCouponsOfUser (request, reply) {
     const coupons = [];
 
     couponSnapshot.forEach(couponDoc => {
-      coupons.push(couponDoc.data());
+      coupons.push({
+        ...couponDoc.data(),
+        id: couponDoc.id
+      });
     });
 
     return reply

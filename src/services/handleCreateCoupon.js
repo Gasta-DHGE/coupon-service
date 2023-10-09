@@ -51,9 +51,14 @@ export default async function (request, reply) {
       .doc(couponDocumentId)
       .get();
 
+    const couponRes = {
+      ...couponSnapshot.data(),
+      id: couponSnapshot
+    };
+
     return reply
       .code(StatusCodes.CREATED)
-      .send(couponSnapshot.data());
+      .send(couponRes);
   } catch (error) {
     return reply
       .code(StatusCodes.INTERNAL_SERVER_ERROR)
