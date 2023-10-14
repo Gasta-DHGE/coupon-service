@@ -5,16 +5,16 @@ import uniqid from 'uniqid';
 export default async function (request, reply) {
   const { uid, surveyId, userChoiceIndex } = request.body;
 
-  const userHasCoupon = await checkUserAlreadyHasCoupon(surveyId, uid);
-
-  if (userHasCoupon) {
-    return reply
-      .code(StatusCodes.BAD_REQUEST)
-      .send({
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: 'user has already a coupon of this survey'
-      });
-  }
+  // const userHasCoupon = await checkUserAlreadyHasCoupon(surveyId, uid);
+  //
+  // if (userHasCoupon) {
+  //  return reply
+  //    .code(StatusCodes.BAD_REQUEST)
+  //    .send({
+  //      statusCode: StatusCodes.BAD_REQUEST,
+  //      message: 'user has already a coupon of this survey'
+  //    });
+  // }
 
   const { coupon, companyId, error } = await createCoupon(surveyId, userChoiceIndex);
 
